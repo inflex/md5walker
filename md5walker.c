@@ -46,9 +46,9 @@ int parse_parameters( struct globals *g, int argc, char **argv ) {
 				case 'p': (g->showdirs)++; break;
 				case 'd': (g->debug)++; break;
 				case 'i':
-						  if ((i < argc -1) && (argv[i+1][0] != '-')){
+						  if ((i < argc -1 ) && (argv[i+1][0] != '-')){
 							  i++;
-							  g->inputpath = strdup(argv[i]);
+							  g->inputpath = (argv[i]);
 						  }
 						  break;
 				default:
@@ -70,11 +70,15 @@ int main(int argc, char **argv) {
 	g.debug = 0;
 	g.verbose = 0;
 
+
 	if (argc < 2) {
 		fprintf(stderr,"%s [-p] -i <path to scan>\n", argv[0]);
 		return 1;
 	}
 
+	parse_parameters( glb, argc, argv );
+
+	fprintf(stdout,"Input path: '%s'\n", g.inputpath);
 	nftw( g.inputpath, md5test, 10, FTW_MOUNT|FTW_PHYS);
 
 
