@@ -78,7 +78,6 @@ int main(int argc, char **argv) {
 
 	parse_parameters( glb, argc, argv );
 
-	fprintf(stdout,"Input path: '%s'\n", g.inputpath);
 	nftw( g.inputpath, md5test, 10, FTW_MOUNT|FTW_PHYS);
 
 
