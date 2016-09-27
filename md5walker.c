@@ -51,10 +51,8 @@ int parse_parameters( struct globals *g, int argc, char **argv ) {
 				case 'p': (g->showdirs)++; break;
 				case 'd': (g->debug)++; break;
 				case 'i':
-						  if ((i < argc -1 ) && (argv[i+1][0] != '-')){
-							  i++;
-							  g->inputpath = (argv[i]);
-						  }
+						i++;
+						g->inputpath = strdup(argv[i]);
 						  break;
 				default:
 						  fprintf(stderr,"Unknown parameter (%s)\n", argv[i]);
@@ -69,6 +67,7 @@ int md5scandir( char *path ) {
 
 	DIR *d;
 
+	if (glb->debug) fprintf(stderr,"scanning '%s'\n",path);
 	(glb->floor)++;
 	if (glb->floor > 30) {
 		fprintf(stderr,"Floor hit\n");
@@ -89,12 +88,13 @@ int md5scandir( char *path ) {
 				if (errno > 0) {
 					fprintf(stderr,"ERROR: while reading entry '%s' (%s)\n", ffn, strerror(errno));
 				} else  {
+					if (glb->debug) fprintf(stderr,"END of directory\n");
 					break;
 				}
 			}
 
-			if (strcmp(f->d_name, ".")==0) break;
-			if (strcmp(f->d_name, "..")==0) break;
+			if (strcmp(f->d_name, ".")==0) continue;
+			if (strcmp(f->d_name, "..")==0) continue;
 
 			snprintf(ffn, sizeof(ffn),"%s/%s",path, f->d_name);
 			if (f->d_type == DT_DIR) {
@@ -106,6 +106,8 @@ int md5scandir( char *path ) {
 			}
 		}
 
+	} else {
+		fprintf(stderr,"Can't open directory '%s' (%s)\n", path, strerror(errno));
 	}
 
 	(glb->floor)--;
@@ -131,6 +133,7 @@ int main(int argc, char **argv) {
 
 	parse_parameters( glb, argc, argv );
 
+	if (g.debug) fprintf(stderr,"input path: '%s'\n", g.inputpath);
 	rr = md5scandir( g.inputpath );
 
 
