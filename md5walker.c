@@ -1,9 +1,9 @@
-#define _XOPEN_SOURCE 500
-#include <ftw.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <dirent.h>
+#include <errno.h>
 
 #include "md5.h"
 
@@ -11,32 +11,24 @@ struct globals {
 	int debug;
 	int verbose;
 	int showdirs;
+	int floor;
 	char *inputpath;
 };
 
 struct globals *glb;
 
-static int md5test( const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf ) {
+static int md5test( const char *fpath ) {
 
-	if (typeflag == FTW_F) {
-		char hash[128];
-		int rr;
-		rr = md5_file( fpath, hash, sizeof(hash) );
-		if (rr == 0) { 
-			fprintf(stdout,"%s %s\n", hash, fpath );
-		} else {
-			if (glb->debug) fprintf(stderr,"Error %d computing MD5 for '%s'\n", rr, fpath);
-		}
-		
-
-	} else if ((typeflag == FTW_D)&&(glb->showdirs)) {
-		fprintf(stderr,"%s\n",fpath);
+	char hash[128];
+	int rr;
+	rr = md5_file( fpath, hash, sizeof(hash) );
+	if (rr == 0) { 
+		fprintf(stdout,"%s %s\n", hash, fpath );
 	} else {
-		if (glb->debug) fprintf(stderr,"WARNING: Unhandled file type: %d for '%s'\n", typeflag, fpath);
+		if (glb->debug) fprintf(stderr,"Error %d computing MD5 for '%s'\n", rr, fpath);
+		return rr;
 	}
-
 	return 0;
-
 }
 
 char help[] = "md5walker [-v] [-d] [-p] -i <path> [-h]\n\
@@ -54,7 +46,7 @@ int parse_parameters( struct globals *g, int argc, char **argv ) {
 		if (argv[i][0] == '-') {
 			switch (argv[i][1]) {
 				case 'h': fprintf(stdout,"%s", help); exit(0); break;
-//				case 'V': fprintf(stdout,"%s\n",  VERSION); exit(0); break;
+						  //				case 'V': fprintf(stdout,"%s\n",  VERSION); exit(0); break;
 				case 'v': (g->verbose)++; break;
 				case 'p': (g->showdirs)++; break;
 				case 'd': (g->debug)++; break;
@@ -73,6 +65,53 @@ int parse_parameters( struct globals *g, int argc, char **argv ) {
 	return 0;
 }
 
+int md5scandir( char *path ) {
+
+	DIR *d;
+
+	(glb->floor)++;
+	if (glb->floor > 30) {
+		fprintf(stderr,"Floor hit\n");
+		return 1;
+	}
+
+	d = opendir( path );
+	if (d) {
+		struct dirent *f;
+
+		if (glb->showdirs) fprintf(stderr,"%s\n",path);
+
+		while (1) {
+			char ffn[4096];
+
+			f = readdir(d);
+			if (f == NULL) {
+				if (errno > 0) {
+					fprintf(stderr,"ERROR: while reading entry '%s' (%s)\n", ffn, strerror(errno));
+				} else  {
+					break;
+				}
+			}
+
+			if (strcmp(f->d_name, ".")==0) break;
+			if (strcmp(f->d_name, "..")==0) break;
+
+			snprintf(ffn, sizeof(ffn),"%s/%s",path, f->d_name);
+			if (f->d_type == DT_DIR) {
+				md5scandir(ffn);
+			} else if (f->d_type == DT_REG) {
+				md5test(ffn);
+			} else {
+				fprintf(stderr,"Unknown d_type %d (%s)\n", f->d_type, ffn);
+			}
+		}
+
+	}
+
+	(glb->floor)--;
+
+	return 0;
+}
 
 int main(int argc, char **argv) {
 
@@ -92,7 +131,7 @@ int main(int argc, char **argv) {
 
 	parse_parameters( glb, argc, argv );
 
-	rr = nftw( g.inputpath, md5test, 10, FTW_MOUNT|FTW_PHYS);
+	rr = md5scandir( g.inputpath );
 
 
 
