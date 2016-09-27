@@ -112,6 +112,7 @@ int md5scandir( char *path ) {
 
 	(glb->floor)--;
 
+	closedir(d);
 	return 0;
 }
 
