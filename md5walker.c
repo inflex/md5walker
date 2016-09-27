@@ -22,16 +22,29 @@ static int md5test( const char *fpath, const struct stat *sb, int typeflag, stru
 		char hash[128];
 		int rr;
 		rr = md5_file( fpath, hash, sizeof(hash) );
-		if (rr == 0) fprintf(stdout,"%s %s\n", fpath, hash );
-	}
+		if (rr == 0) { 
+			fprintf(stdout,"%s %s\n", hash, fpath );
+		} else {
+			if (glb->debug) fprintf(stderr,"Error %d computing MD5 for '%s'\n", rr, fpath);
+		}
+		
 
-	if ((typeflag == FTW_D)&&(glb->showdirs)) {
+	} else if ((typeflag == FTW_D)&&(glb->showdirs)) {
 		fprintf(stderr,"%s\n",fpath);
+	} else {
+		if (glb->debug) fprintf(stderr,"WARNING: Unhandled file type: %d for '%s'\n", typeflag, fpath);
 	}
 
 	return 0;
 
 }
+
+char help[] = "md5walker [-v] [-d] [-p] -i <path> [-h]\n\
+			   -h : this help\n\
+			   -v : turn on verbosity\n\
+			   -p : show folders as they're processed (to stderr)\n\
+			   -d : turn on debug output\n\
+			   -i <path> : MD5Walk the directory tree with <path> as the head\n";
 
 int parse_parameters( struct globals *g, int argc, char **argv ) {
 
@@ -40,7 +53,7 @@ int parse_parameters( struct globals *g, int argc, char **argv ) {
 	for (i = 0; i < argc; i++) {
 		if (argv[i][0] == '-') {
 			switch (argv[i][1]) {
-//				case 'h': fprintf(stdout,"%s", help); exit(0); break;
+				case 'h': fprintf(stdout,"%s", help); exit(0); break;
 //				case 'V': fprintf(stdout,"%s\n",  VERSION); exit(0); break;
 				case 'v': (g->verbose)++; break;
 				case 'p': (g->showdirs)++; break;
@@ -64,6 +77,7 @@ int parse_parameters( struct globals *g, int argc, char **argv ) {
 int main(int argc, char **argv) {
 
 	struct globals g;
+	int rr;
 
 	glb = &g;
 	g.showdirs = 0;
@@ -72,15 +86,15 @@ int main(int argc, char **argv) {
 
 
 	if (argc < 2) {
-		fprintf(stderr,"%s [-p] -i <path to scan>\n", argv[0]);
+		fprintf(stderr,"%s", help);
 		return 1;
 	}
 
 	parse_parameters( glb, argc, argv );
 
-	nftw( g.inputpath, md5test, 10, FTW_MOUNT|FTW_PHYS);
+	rr = nftw( g.inputpath, md5test, 10, FTW_MOUNT|FTW_PHYS);
 
 
 
-	return 0;
+	return rr;
 }
